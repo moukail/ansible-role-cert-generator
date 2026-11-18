@@ -1,0 +1,81 @@
+---
+- name: Install OpenSSL and cryptography runtime
+  ansible.builtin.package:
+    name: python3-cryptography
+    state: present
+  become: true
+
+# --------------------------------------------------------
+# CA GENERATION
+# --------------------------------------------------------
+
+- name: Create or retain local CA
+  ansible.builtin.import_tasks: ca.yaml
+  #when: cert_ca_create | bool
+
+# --------------------------------------------------------
+# SERVER KEY + CSR
+# --------------------------------------------------------
+- name: Ensure certificate directories exist
+  ansible.builtin.file:
+    path: "{{ cert_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Generate client private key
+  become: true
+  community.crypto.openssl_privatekey:
+    path: "{{ cert_key_path }}"
+    size: 3072
+    type: RSA
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Generate client CSR
+  become: true
+  community.crypto.openssl_csr:
+    path: "{{ cert_csr_path }}"
+    privatekey_path: "{{ cert_key_path }}"
+    common_name: "{{ cert_common_name }}"
+    subject_alt_name:
+      - "DNS:{{ cert_common_name }}"
+      - "DNS:localhost"
+    digest: sha256
+    basic_constraints:
+      - "CA:FALSE"
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - clientAuth
+    owner: root
+    group: root
+    mode: "0644"
+
+# --------------------------------------------------------
+# SIGN SERVER CERT WITH CA
+# --------------------------------------------------------
+- name: Generate CA-signed server certificate
+  become: true
+  community.crypto.x509_certificate:
+    path: "{{ cert_certificate_path }}"
+    csr_path: "{{ cert_csr_path }}"
+    provider: ownca
+    ownca_path: "{{ cert_ca_certificate_path }}"
+    ownca_privatekey_path: "{{ cert_ca_key_path }}"
+    ownca_not_before: "-5m"
+    ownca_not_after: "+{{ cert_validity_days }}d"
+    ownca_digest: sha256
+    ownca_create_subject_key_identifier: create_if_not_provided
+    ownca_create_authority_key_identifier: true
+    ownca_privatekey_passphrase: "{{ cert_ca_passphrase }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Extract slot ID for token label
+  ansible.builtin.set_fact:
+    cert_ca_certificate_path: "{{ cert_ca_certificate_path }}"
+    cert_key_path: "{{ cert_key_path }}"
+    cert_certificate_path: "{{ cert_certificate_path }}"

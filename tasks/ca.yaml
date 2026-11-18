@@ -1,0 +1,72 @@
+---
+- name: Create CA private-key directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ cert_ca_dir }}/private"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Create CA public-certificate directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ cert_ca_dir }}/certs"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Generate encrypted local Root CA private key
+  become: true
+  community.crypto.openssl_privatekey:
+    path: "{{ cert_ca_key_path }}"
+    type: RSA
+    size: 4096
+    passphrase: "{{ cert_ca_passphrase }}"
+    cipher: auto
+    owner: root
+    group: root
+    mode: "0600"
+    regenerate: never
+  #no_log: true
+
+- name: Generate Root CA CSR with CA extensions
+  become: true
+  community.crypto.openssl_csr:
+    path: "{{ cert_ca_csr_path }}"
+    privatekey_path: "{{ cert_ca_key_path }}"
+    privatekey_passphrase: "{{ cert_ca_passphrase }}"
+    common_name: "{{ cert_ca_common_name }}"
+    use_common_name_for_san: false
+    digest: sha256
+    basic_constraints:
+      - "CA:TRUE"
+      - "pathlen:1"
+    basic_constraints_critical: true
+    key_usage:
+      - keyCertSign
+      - cRLSign
+    key_usage_critical: true
+    create_subject_key_identifier: true
+    owner: root
+    group: root
+    mode: "0644"
+  #no_log: true
+
+- name: Create self-signed Root CA certificate from CA CSR
+  become: true
+  community.crypto.x509_certificate:
+    path: "{{ cert_ca_certificate_path }}"
+    csr_path: "{{ cert_ca_csr_path }}"
+    privatekey_path: "{{ cert_ca_key_path }}"
+    privatekey_passphrase: "{{ cert_ca_passphrase }}"
+    provider: selfsigned
+    selfsigned_not_before: "-5m"
+    selfsigned_not_after: "+{{ cert_ca_validity_days }}d"
+    selfsigned_digest: sha256
+    selfsigned_create_subject_key_identifier: create_if_not_provided
+    owner: root
+    group: root
+    mode: "0644"
+  #no_log: true

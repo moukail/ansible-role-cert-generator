@@ -1,0 +1,15 @@
+#SPDX-License-Identifier: MIT-0
+---
+galaxy_info:
+  author: I Moukafih
+  description: Ansible Role for OpenSSL Certificate
+  license: MIT
+  min_ansible_version: "2.1"
+  galaxy_tags:
+    - OpenSSL
+    - security
+
+dependencies:
+  - name: ansible-role-openssl
+    src: git+https://github.com/moukail/ansible-role-openssl.git
+    version: main
