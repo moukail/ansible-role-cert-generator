@@ -42,7 +42,7 @@
     digest: sha256
     basic_constraints:
       - "CA:TRUE"
-      - "pathlen:1"
+      - "pathlen:0"
     basic_constraints_critical: true
     key_usage:
       - keyCertSign

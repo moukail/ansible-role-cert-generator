@@ -32,26 +32,50 @@
     group: "{{ ansible_user }}"
     mode: "0600"
 
-- name: Generate client CSR
+- name: Generate OpenSSL CSR configuration
   become: true
-  community.crypto.openssl_csr:
-    path: "{{ cert_csr_path }}"
-    privatekey_path: "{{ cert_key_path }}"
-    common_name: "{{ cert_common_name }}"
-    subject_alt_name:
-      - "DNS:{{ cert_common_name }}"
-      - "DNS:localhost"
-    digest: sha256
-    basic_constraints:
-      - "CA:FALSE"
-    key_usage:
-      - digitalSignature
-      - keyEncipherment
-    extended_key_usage:
-      - clientAuth
+  ansible.builtin.template:
+    src: openssl.cnf.j2
+    dest: "{{ cert_dir }}/openssl.cnf"
     owner: root
     group: root
     mode: "0644"
+
+- name: Generate CSR using OpenSSL configuration
+  become: true
+  ansible.builtin.command: >
+    openssl req -new -sha256 -key "{{ cert_key_path }}"
+    -out "{{ cert_csr_path }}" -config "{{ cert_dir }}/openssl.cnf"
+  args:
+    creates: "{{ cert_csr_path }}"
+
+#- name: Generate server CSR
+#  become: true
+#  community.crypto.openssl_csr:
+#    path: "{{ cert_csr_path }}"
+#    privatekey_path: "{{ cert_key_path }}"
+#    common_name: "{{ cert_common_name }}"
+#    use_common_name_for_san: false
+#    subject_alt_name:
+#      - "DNS:{{ cert_common_name }}"
+#      - "DNS:localhost"
+#      - "IP:127.0.0.1"
+#    digest: sha256
+#    basic_constraints:
+#      - "CA:FALSE"
+#    basic_constraints_critical: true
+#    key_usage:
+#      - digitalSignature
+#      - keyEncipherment
+#    key_usage_critical: true
+#    extended_key_usage:
+#      - serverAuth
+#      - clientAuth
+#    extended_key_usage_critical: true
+#    create_subject_key_identifier: true
+#    owner: root
+#    group: root
+#    mode: "0644"
 
 # --------------------------------------------------------
 # SIGN SERVER CERT WITH CA
