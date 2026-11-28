@@ -70,3 +70,29 @@
     group: root
     mode: "0644"
   #no_log: true
+
+- name: Install local Root CA into system trust store (Red Hat)
+  ansible.builtin.copy:
+    src: "{{ cert_ca_certificate_path }}"
+    dest: /etc/pki/ca-trust/source/anchors/local-ca.crt
+    remote_src: true
+    mode: "0644"
+  when: ansible_os_family == 'RedHat'
+  register: ca_trust_rh
+
+- name: Update Red Hat CA trust store
+  ansible.builtin.command: update-ca-trust extract
+  when: ca_trust_rh is changed
+
+- name: Install local Root CA into system trust store (Debian)
+  ansible.builtin.copy:
+    src: "{{ cert_ca_certificate_path }}"
+    dest: /usr/local/share/ca-certificates/local-ca.crt
+    remote_src: true
+    mode: "0644"
+  when: ansible_os_family == 'Debian'
+  register: ca_trust_deb
+
+- name: Update Debian CA trust store
+  ansible.builtin.command: update-ca-certificates
+  when: ca_trust_deb is changed
